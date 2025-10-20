@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Porsche Redirect – Options</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+      h1 { font-size: 20px; margin: 0 0 16px; }
+      form { display: flex; gap: 8px; margin-bottom: 16px; }
+      input[type="text"] { flex: 1; padding: 8px; font-size: 14px; }
+      button { padding: 8px 12px; font-size: 14px; cursor: pointer; }
+      ul { list-style: none; padding: 0; margin: 0; }
+      li { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+      code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; }
+      .hint { color: #666; font-size: 12px; margin-bottom: 12px; }
+      .empty { color: #999; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <h1>Blocked URL patterns</h1>
+    <div class="hint">Use wildcard patterns like <code>*instagram.com/reels/*</code>. Any protocol is matched.</div>
+    <form id="addForm">
+      <input id="patternInput" type="text" placeholder="e.g. *instagram.com/reels/*" required />
+      <button type="submit">Add</button>
+    </form>
+    <ul id="patternList"></ul>
+
+    <script src="options.js"></script>
+  </body>
+  </html>
+
+
