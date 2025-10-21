@@ -33,12 +33,15 @@ function dnrUpdateDynamicRules(options) {
 const REDIRECT_EXTENSION_PATH = "/redirect.html";
 
 function wildcardToRegexForUrl(pattern) {
-  // Escape regex metacharacters, then expand '*' into '.*'
+  // Treat the entire URL as a string; '*' expands to '.*', no special URL parsing
   const escaped = String(pattern)
     .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*/g, ".*");
-  // Match any scheme (letters/digits/_ plus + . -) and allow anything before the pattern (e.g., subdomains)
-  return `^[\\w+.-]+:\\/\\/.*${escaped}.*$`;
+  // If the pattern does not end with '*' and does not already end with a slash,
+  // allow an optional trailing slash to cover homepage URLs that include '/'
+  const allowOptionalSlash = !/\*$/.test(String(pattern)) && !/\/$/.test(String(pattern));
+  const suffix = allowOptionalSlash ? '\\/?' : '';
+  return `^${escaped}${suffix}$`;
 }
 
 // Generate a stable numeric id per pattern (32-bit FNV-1a hash)
