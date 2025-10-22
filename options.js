@@ -62,6 +62,17 @@ document.getElementById('addForm').addEventListener('submit', (e) => {
   });
 });
 
-document.addEventListener('DOMContentLoaded', loadPatterns);
+document.addEventListener('DOMContentLoaded', () => {
+  loadPatterns();
+  const cb = document.getElementById('hideShorts');
+  if (cb) {
+    chrome.storage.sync.get({ hideYouTubeShorts: true }, (v) => {
+      cb.checked = Boolean(v.hideYouTubeShorts);
+    });
+    cb.addEventListener('change', () => {
+      chrome.storage.sync.set({ hideYouTubeShorts: cb.checked });
+    });
+  }
+});
 
 
