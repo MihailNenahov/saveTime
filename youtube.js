@@ -27,6 +27,14 @@ ytd-mini-guide-entry-renderer:has(a[href*="/shorts"]) {
   display: none !important;
 }
 
+/* Explicitly target menu entries with title="Shorts" */
+ytd-guide-entry-renderer:has(a#endpoint[title="Shorts"]) {
+  display: none !important;
+}
+ytd-mini-guide-entry-renderer:has(a[title="Shorts"]) {
+  display: none !important;
+}
+
 /* Search page and modern view-model shelves */
 grid-shelf-view-model:has(a[href^="/shorts/"]) {
   display: none !important;
@@ -47,8 +55,7 @@ ytm-shorts-lockup-view-model {
     const selectors = [
       'ytd-reel-shelf-renderer',
       'ytd-rich-shelf-renderer[is-shorts]',
-      'ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts])',
-      'ytd-item-section-renderer:has(ytd-reel-shelf-renderer)',
+      // Avoid removing entire sections; only remove the shelf nodes themselves
       'ytd-rich-item-renderer:has(a[href^="/shorts/"])',
       'ytd-compact-video-renderer:has(a[href^="/shorts/"])',
       'ytd-guide-entry-renderer:has(a[href*="/shorts"])',
@@ -67,6 +74,18 @@ ytm-shorts-lockup-view-model {
       });
     } catch (_) {}
 
+    // Remove left-menu 'Shorts' entries by label text as a fallback
+    try {
+      document.querySelectorAll('ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer').forEach((entry) => {
+        const title = entry.querySelector && entry.querySelector('.title');
+        const text = title && (title.textContent || '').trim().toLowerCase();
+        if (text === 'shorts') {
+          if (typeof entry.remove === 'function') entry.remove();
+          else entry.style.display = 'none';
+        }
+      });
+    } catch (_) {}
+
     // Anchor-based container removal as a fallback on search:
     try {
       document.querySelectorAll('a[href^="/shorts/"]').forEach((a) => {
@@ -74,9 +93,8 @@ ytm-shorts-lockup-view-model {
         for (let i = 0; i < 25 && node && node !== document.body; i++) {
           if (node.tagName && (
             node.tagName.toLowerCase() === 'grid-shelf-view-model' ||
-            node.tagName.toLowerCase() === 'ytd-rich-section-renderer' ||
-            node.tagName.toLowerCase() === 'ytd-item-section-renderer' ||
-            node.tagName.toLowerCase() === 'ytd-rich-shelf-renderer'
+            node.tagName.toLowerCase() === 'ytd-rich-shelf-renderer' ||
+            node.tagName.toLowerCase() === 'ytd-reel-shelf-renderer'
           )) {
             if (typeof node.remove === 'function') node.remove();
             else node.style.display = 'none';
@@ -109,7 +127,7 @@ ytm-shorts-lockup-view-model {
       const sr = node.shadowRoot;
       if (sr) stack.push(sr);
 
-      // If this node is a Shorts shelf container by title text, remove it
+      // If this node is a Shorts shelf container by title text, remove it (do not remove entire sections)
       if (node.tagName && node.tagName.toLowerCase() === 'grid-shelf-view-model') {
         try {
           // search for a header h2 with text 'Shorts'
@@ -117,6 +135,18 @@ ytm-shorts-lockup-view-model {
           const label = header && (header.textContent || '').trim();
           if (label && label.toLowerCase() === 'shorts') {
             if (typeof node.remove === 'function') node.remove(); else node.style.display = 'none';
+            continue;
+          }
+        } catch (_) {}
+      }
+
+      // If this node contains a visible Shorts badge, remove enclosing item/shelf
+      if (node.nodeType === 1) {
+        try {
+          const text = (node.textContent || '').trim().toLowerCase();
+          const classStr = (node.className || '').toString();
+          if (text === 'shorts' && /badge|shorts/i.test(classStr)) {
+            removeByShortsBadge(node);
             continue;
           }
         } catch (_) {}
@@ -137,7 +167,34 @@ ytm-shorts-lockup-view-model {
     for (let i = 0; i < 30 && cur; i++) {
       if (cur.tagName) {
         const tag = cur.tagName.toLowerCase();
-        if (tag === 'grid-shelf-view-model' || tag === 'ytd-item-section-renderer' || tag === 'ytd-rich-section-renderer' || tag === 'ytd-rich-shelf-renderer') {
+        if (tag === 'grid-shelf-view-model' || tag === 'ytd-rich-shelf-renderer' || tag === 'ytd-reel-shelf-renderer') {
+          try { if (typeof cur.remove === 'function') cur.remove(); else cur.style.display = 'none'; } catch (_) {}
+          return true;
+        }
+      }
+      if (cur.parentElement) { cur = cur.parentElement; continue; }
+      const rn = cur.getRootNode && cur.getRootNode();
+      if (rn && rn.host) { cur = rn.host; continue; }
+      break;
+    }
+    return false;
+  }
+
+  function removeByShortsBadge(node) {
+    let cur = node;
+    for (let i = 0; i < 25 && cur; i++) {
+      if (cur.tagName) {
+        const tag = cur.tagName.toLowerCase();
+        if (
+          tag === 'ytd-video-renderer' ||
+          tag === 'ytd-compact-video-renderer' ||
+          tag === 'ytd-grid-video-renderer' ||
+          tag === 'ytd-rich-grid-media' ||
+          tag === 'ytd-rich-item-renderer' ||
+          tag === 'grid-shelf-view-model' ||
+          tag === 'ytd-rich-shelf-renderer' ||
+          tag === 'ytd-reel-shelf-renderer'
+        ) {
           try { if (typeof cur.remove === 'function') cur.remove(); else cur.style.display = 'none'; } catch (_) {}
           return true;
         }
