@@ -20,9 +20,11 @@ function renderPatterns(patterns) {
   }
   patterns.forEach((pattern, index) => {
     const li = document.createElement('li');
+    li.className = 'list-item';
     const label = document.createElement('span');
     label.innerHTML = `<code>${escapeHtml(pattern)}</code>`;
     const remove = document.createElement('button');
+    remove.className = 'btn btn-sm btn-danger';
     remove.textContent = 'Remove';
     remove.addEventListener('click', () => {
       const next = patterns.slice(0, index).concat(patterns.slice(index + 1));

@@ -5,16 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Porsche Redirect</title>
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 12px; min-width: 260px; }
-      h1 { font-size: 14px; margin: 0 0 8px; }
-      button { padding: 8px 10px; font-size: 13px; cursor: pointer; }
-      .hint { color: #666; font-size: 12px; margin-top: 8px; }
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e5e7eb;
+        --primary: #2563eb;
+        --primary-contrast: #ffffff;
+      }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; min-width: 300px; background: var(--bg); color: var(--text); }
+      .container { padding: 19px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 19px; padding: 19px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+      h1 { font-size: 19px; margin: 0 0 13px; }
+      .btn { padding: 13px 14px; font-size: 15px; cursor: pointer; border-radius: 13px; border: 1px solid transparent; background: var(--primary); color: var(--primary-contrast); transition: filter .15s; width: 100%; }
+      .btn:hover { filter: brightness(0.95); }
+      .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
     </style>
   </head>
   <body>
-    <h1>Porsche Redirect</h1>
-    <button id="openOptions">Open Options</button>
-    <div class="hint">Add or remove URL patterns.</div>
+    <div class="container">
+      <div class="card">
+        <h1>Porsche Redirect</h1>
+        <button id="openOptions" class="btn">Open Options</button>
+        <div class="hint">Add or remove URL patterns.</div>
+      </div>
+    </div>
     <script src="popup.js"></script>
   </body>
   </html>
