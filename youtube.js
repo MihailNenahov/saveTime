@@ -1,15 +1,22 @@
 (function () {
-  const ENABLE_KEY = 'hideYouTubeShorts';
+  const SHORTS_KEY = 'hideYouTubeShorts';
+  const RECS_KEY = 'hideYouTubeRecommendations';
 
-  function isEnabled() {
+  let settings = { [SHORTS_KEY]: true, [RECS_KEY]: false };
+
+  function getSettings() {
     return new Promise((resolve) => {
       try {
         if (!chrome || !chrome.storage || !chrome.storage.sync || typeof chrome.storage.sync.get !== 'function') {
-          return resolve(true);
+          return resolve({ [SHORTS_KEY]: true, [RECS_KEY]: false });
         }
-        chrome.storage.sync.get({ [ENABLE_KEY]: true }, (v) => resolve(Boolean(v[ENABLE_KEY])));
+        chrome.storage.sync.get({ [SHORTS_KEY]: true, [RECS_KEY]: false }, (v) => {
+          const next = { [SHORTS_KEY]: Boolean(v[SHORTS_KEY]), [RECS_KEY]: Boolean(v[RECS_KEY]) };
+          settings = next;
+          resolve(next);
+        });
       } catch (_) {
-        resolve(true);
+        resolve({ [SHORTS_KEY]: true, [RECS_KEY]: false });
       }
     });
   }
@@ -107,6 +114,135 @@ ytm-shorts-lockup-view-model {
 
     // Deep scan including shadow roots; also remove shelves titled "Shorts"
     try { deepScanShortsShelves(); } catch (_) {}
+  }
+
+  function updateRecommendationsVisibility() {
+    try {
+      const styleId = 'hide-youtube-recommendations-style';
+      const existing = document.getElementById(styleId);
+      const isHome = ((location.pathname || '').replace(/\/+$/, '')) === '';
+      if (settings[RECS_KEY] && isHome) {
+        if (!existing) {
+          const style = document.createElement('style');
+          style.id = styleId;
+          style.textContent = 'ytd-rich-grid-renderer{display:none!important;}';
+          document.documentElement.appendChild(style);
+        }
+      } else {
+        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      }
+    } catch (_) {}
+  }
+
+  function findMastheadCenter() {
+    try {
+      const masthead = document.querySelector('ytd-masthead');
+      if (!masthead) return null;
+      const root = masthead.shadowRoot;
+      if (!root) return null;
+      const center = root.getElementById('center') || root.querySelector('#center');
+      return center || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function ensureCenteredContainer() {
+    let container = document.getElementById('yt-centered-controls');
+    if (container) return container;
+    try {
+      const styleId = 'yt-centered-controls-style';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = [
+          '#yt-centered-controls{position:fixed;left:50%;top:40vh;transform:translateX(-50%);display:flex;align-items:center;gap:12px;z-index:2147483647;}',
+          '#yt-centered-controls > *{max-width:min(90vw,1000px);}',
+          '#yt-centered-controls ytd-searchbox{min-width:min(90vw,900px);}',
+          '#yt-centered-controls yt-icon-button,#yt-centered-controls yt-button-shape{transform:none;}'
+        ].join('');
+        document.documentElement.appendChild(style);
+      }
+      container = document.createElement('div');
+      container.id = 'yt-centered-controls';
+      document.documentElement.appendChild(container);
+      return container;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function gatherMastheadControls(root) {
+    const nodes = [];
+    try {
+      const searchbox = root && root.querySelector && root.querySelector('ytd-searchbox');
+      if (searchbox) nodes.push(searchbox);
+    } catch (_) {}
+    try {
+      const searchBtn = root && root.querySelector && root.querySelector('yt-icon-button#search-icon-legacy');
+      if (searchBtn) nodes.push(searchBtn);
+    } catch (_) {}
+    try {
+      const micBtn = root && root.querySelector && root.querySelector('yt-button-shape#voice-search-button');
+      if (micBtn) nodes.push(micBtn);
+    } catch (_) {}
+    return nodes.filter(Boolean);
+  }
+
+  function updateMastheadCenterRelocation() {
+    try {
+      const isHome = ((location.pathname || '').replace(/\/+$/, '')) === '';
+      const shouldRelocate = Boolean(settings[RECS_KEY] && isHome);
+
+      const container = document.getElementById('yt-centered-controls');
+      if (!shouldRelocate) {
+        // Restore children if we previously moved them
+        if (container && container.__ytRestoreList) {
+          container.__ytRestoreList.forEach((entry) => {
+            const node = entry && entry.node;
+            const parent = entry && entry.parent;
+            const nextSibling = entry && entry.nextSibling;
+            try {
+              if (!node || !parent) return;
+              if (node.parentNode === container) {
+                if (nextSibling && nextSibling.parentNode === parent) parent.insertBefore(node, nextSibling);
+                else parent.appendChild(node);
+              }
+            } catch (_) {}
+          });
+          container.__ytRestoreList = undefined;
+        }
+        if (container && container.parentNode) container.parentNode.removeChild(container);
+        return;
+      }
+
+      const masthead = document.querySelector('ytd-masthead');
+      const root = masthead && masthead.shadowRoot;
+      const center = root ? (root.getElementById('center') || root.querySelector('#center')) : null;
+
+      const host = ensureCenteredContainer();
+      if (!host) return;
+
+      // If already moved and still attached, nothing to do
+      if (host.__ytRestoreList && host.__ytRestoreList.length) {
+        const stillAttached = host.__ytRestoreList.every((e) => e && e.node && e.node.parentNode === host);
+        if (stillAttached) return;
+      }
+
+      const restoreList = [];
+      let nodesToMove = [];
+      if (root) nodesToMove = gatherMastheadControls(root);
+      if ((!nodesToMove || !nodesToMove.length) && center) nodesToMove = Array.from(center.children);
+      if (!nodesToMove || !nodesToMove.length) return;
+
+      nodesToMove.forEach((node) => {
+        try {
+          restoreList.push({ node, parent: node.parentNode, nextSibling: node.nextSibling });
+          host.appendChild(node);
+        } catch (_) {}
+      });
+      host.__ytRestoreList = restoreList;
+    } catch (_) {}
   }
 
   function deepScanShortsShelves() {
@@ -249,7 +385,9 @@ ytm-shorts-lockup-view-model {
       scheduled = true;
       requestAnimationFrame(() => {
         scheduled = false;
-        removeShortsNow();
+        if (settings[SHORTS_KEY]) removeShortsNow();
+        updateRecommendationsVisibility();
+        updateMastheadCenterRelocation();
       });
     };
     try {
@@ -259,21 +397,54 @@ ytm-shorts-lockup-view-model {
     window.addEventListener('yt-navigate-finish', schedule, true);
     window.addEventListener('popstate', schedule);
     window.addEventListener('hashchange', schedule);
-    const id = setInterval(removeShortsNow, 3000);
+    const id = setInterval(() => {
+      if (settings[SHORTS_KEY]) removeShortsNow();
+      updateRecommendationsVisibility();
+      updateMastheadCenterRelocation();
+    }, 3000);
     window.addEventListener('pagehide', () => { try { clearInterval(id); } catch (_) {} });
   }
 
-  isEnabled().then((enabled) => {
-    if (!enabled) return;
+  getSettings().then((cfg) => {
+    const anyEnabled = Boolean(cfg[SHORTS_KEY] || cfg[RECS_KEY]);
+    if (!anyEnabled) return;
     injectCss();
     redirectIfOnShorts();
     installClickRewrite();
-    removeShortsNow();
+    if (cfg[SHORTS_KEY]) removeShortsNow();
+    updateRecommendationsVisibility();
+    updateMastheadCenterRelocation();
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', removeShortsNow);
+      document.addEventListener('DOMContentLoaded', () => {
+        if (settings[SHORTS_KEY]) removeShortsNow();
+        updateRecommendationsVisibility();
+        updateMastheadCenterRelocation();
+      });
     }
     observeSpaChanges();
   });
+
+  try {
+    if (chrome && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'sync') return;
+        let shouldRun = false;
+        if (Object.prototype.hasOwnProperty.call(changes, SHORTS_KEY)) {
+          settings[SHORTS_KEY] = Boolean(changes[SHORTS_KEY].newValue);
+          shouldRun = true;
+        }
+        if (Object.prototype.hasOwnProperty.call(changes, RECS_KEY)) {
+          settings[RECS_KEY] = Boolean(changes[RECS_KEY].newValue);
+          shouldRun = true;
+        }
+        if (shouldRun) {
+          if (settings[SHORTS_KEY]) removeShortsNow();
+          updateRecommendationsVisibility();
+          updateMastheadCenterRelocation();
+        }
+      });
+    }
+  } catch (_) {}
 })();
 
 

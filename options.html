@@ -60,7 +60,7 @@
               <h1>Blocked URL patterns</h1>
               <div class="hint">Use wildcard patterns like <code>*instagram.com/reels/*</code>. Any protocol is matched.</div>
               <form id="addForm" class="add-form">
-                <input id="patternInput" class="input" type="text" placeholder="e.g. *instagram.com/reels/*" required />
+                <input id="patternInput" class="input" type="text" placeholder="e.g. *reddit.com/smth*" required />
                 <button type="submit" class="btn btn-primary">Add</button>
               </form>
               <ul id="patternList" class="list"></ul>
@@ -71,6 +71,16 @@
           <div class="card">
             <h1>YouTube</h1>
             <label class="toggle"><input id="hideShorts" type="checkbox" class="switch" /><span>Hide YouTube Shorts</span></label>
+            <div style="height:16px"></div>
+            <label class="toggle"><input id="hideRecommendations" type="checkbox" class="switch" /><span>Hide Home Recommendations</span></label>
+          </div>
+          <div class="card" style="margin-top:26px">
+            <h1>Instagram</h1>
+            <label class="toggle"><input id="igHideHome" type="checkbox" class="switch" /><span>Remove Home</span></label>
+            <div style="height:16px"></div>
+            <label class="toggle"><input id="igHideExplore" type="checkbox" class="switch" /><span>Remove Explore</span></label>
+            <div style="height:16px"></div>
+            <label class="toggle"><input id="igHideReels" type="checkbox" class="switch" /><span>Remove Reels</span></label>
           </div>
         </aside>
       </div>
