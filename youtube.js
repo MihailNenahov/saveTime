@@ -218,10 +218,19 @@ ytm-shorts-lockup-view-model {
   function updateMastheadCenterCss() {
     try {
       const isHome = ((location.pathname || '').replace(/\/+$/, '')) === '';
+      const shouldApply = Boolean(settings && settings[RECS_KEY] && isHome);
       const center = findMastheadCenterDeep();
-      if (!center) return;
+      if (!center) {
+        // Even if we cannot find center, still remove hero if we shouldn't apply
+        if (!shouldApply) {
+          const hero = document.getElementById('saveTime-yt-hero');
+          if (hero && hero.parentNode) hero.parentNode.removeChild(hero);
+          window.__saveTimeCenterApplied = false;
+        }
+        return;
+      }
 
-      if (isHome) {
+      if (shouldApply) {
         if (window.__saveTimeCenterApplied) return; // run once per home view
         if (!center.__saveTimePrevStyles) {
           center.__saveTimePrevStyles = {
