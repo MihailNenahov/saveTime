@@ -147,6 +147,135 @@ ytm-shorts-lockup-view-model {
     }
   }
 
+  function findElementByIdDeep(id) {
+    const stack = [document.documentElement];
+    let steps = 0;
+    const MAX = 8000;
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node) continue;
+      if (++steps > MAX) break;
+      try {
+        if (node.nodeType === 1 && node.id === id) return node;
+        const kids = node.children;
+        if (kids && kids.length) {
+          for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
+        }
+        const sr = node.shadowRoot;
+        if (sr) stack.push(sr);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function findMastheadCenterDeep() {
+    try {
+      const direct = findMastheadCenter();
+      if (direct) return direct;
+      const candidate = findElementByIdDeep('center');
+      if (!candidate) return null;
+      const hasSearch = candidate.querySelector && candidate.querySelector('ytd-searchbox');
+      if (hasSearch) return candidate;
+      // Heuristic: element inside a masthead-like shadow host
+      const rn = candidate.getRootNode && candidate.getRootNode();
+      const host = rn && rn.host;
+      if (host && /masthead|app-header/i.test(String(host.tagName || ''))) return candidate;
+      return candidate;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function ensureHeroTitle(text) {
+    try {
+      const styleId = 'saveTime-yt-hero-style';
+      if (!document.getElementById(styleId)) {
+        const s = document.createElement('style');
+        s.id = styleId;
+        s.textContent = [
+          '#saveTime-yt-hero{position:fixed;left:calc(50vw + 25px);top:calc(50vh - 140px + 40px);transform:translateX(-50%);',
+          'width:min(92vw,1200px);text-align:center;z-index:2147483647;pointer-events:none;',
+          'color:#e5e5e5;line-height:1.2;font-weight:600;',
+          // Responsive, large but bounded (reduced by ~2x)
+          'font-size:clamp(18px,3vw,42px);',
+          '}',
+        ].join('');
+        document.documentElement.appendChild(s);
+      }
+      let el = document.getElementById('saveTime-yt-hero');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'saveTime-yt-hero';
+        document.documentElement.appendChild(el);
+      }
+      if (typeof text === 'string') el.textContent = text;
+      return el;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function updateMastheadCenterCss() {
+    try {
+      const isHome = ((location.pathname || '').replace(/\/+$/, '')) === '';
+      const center = findMastheadCenterDeep();
+      if (!center) return;
+
+      if (isHome) {
+        if (window.__saveTimeCenterApplied) return; // run once per home view
+        if (!center.__saveTimePrevStyles) {
+          center.__saveTimePrevStyles = {
+            position: center.style.position,
+            left: center.style.left,
+            top: center.style.top,
+            transform: center.style.transform,
+            zIndex: center.style.zIndex,
+            width: center.style.width,
+            minWidth: center.style.minWidth,
+            maxWidth: center.style.maxWidth,
+            flex: center.style.flex,
+            boxSizing: center.style.boxSizing
+          };
+        }
+        // Force fixed to the visual viewport center regardless of transformed ancestors
+        center.style.setProperty('position', 'fixed', 'important');
+        center.style.setProperty('left', '50vw', 'important');
+        center.style.setProperty('top', '50vh', 'important');
+        center.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+        center.style.setProperty('z-index', '2147483647', 'important');
+        center.style.setProperty('width', '700px', 'important');
+        center.style.setProperty('min-width', '700px', 'important');
+        center.style.setProperty('max-width', '700px', 'important');
+        center.style.setProperty('flex', '0 0 auto', 'important');
+        center.style.setProperty('box-sizing', 'border-box', 'important');
+        // Add hero title above the search
+        ensureHeroTitle('What you want to learn today?');
+        center.dataset.saveTimeCentered = '1';
+        window.__saveTimeCenterApplied = true;
+        try {
+          if (window.__saveTimeCenterIntervalId) { clearInterval(window.__saveTimeCenterIntervalId); window.__saveTimeCenterIntervalId = null; }
+        } catch (_) {}
+      } else if (center.__saveTimePrevStyles) {
+        const prev = center.__saveTimePrevStyles;
+        center.style.setProperty('position', prev.position || '', '');
+        center.style.setProperty('left', prev.left || '', '');
+        center.style.setProperty('top', prev.top || '', '');
+        center.style.setProperty('transform', prev.transform || '', '');
+        center.style.setProperty('z-index', prev.zIndex || '', '');
+        center.style.setProperty('width', prev.width || '', '');
+        center.style.setProperty('min-width', prev.minWidth || '', '');
+        center.style.setProperty('max-width', prev.maxWidth || '', '');
+        center.style.setProperty('flex', prev.flex || '', '');
+        center.style.setProperty('box-sizing', prev.boxSizing || '', '');
+        center.__saveTimePrevStyles = undefined;
+        delete center.dataset.saveTimeCentered;
+        window.__saveTimeCenterApplied = false;
+        const hero = document.getElementById('saveTime-yt-hero');
+        if (hero && hero.parentNode) hero.parentNode.removeChild(hero);
+      }
+    } catch (_) {}
+  }
+
   function ensureCenteredContainer() {
     let container = document.getElementById('yt-centered-controls');
     if (container) return container;
@@ -387,7 +516,7 @@ ytm-shorts-lockup-view-model {
         scheduled = false;
         if (settings[SHORTS_KEY]) removeShortsNow();
         updateRecommendationsVisibility();
-        updateMastheadCenterRelocation();
+        if (!window.__saveTimeCenterApplied) updateMastheadCenterCss();
       });
     };
     try {
@@ -400,8 +529,10 @@ ytm-shorts-lockup-view-model {
     const id = setInterval(() => {
       if (settings[SHORTS_KEY]) removeShortsNow();
       updateRecommendationsVisibility();
-      updateMastheadCenterRelocation();
+      if (!window.__saveTimeCenterApplied) updateMastheadCenterCss();
+      if (window.__saveTimeCenterApplied) { try { clearInterval(id); } catch (_) {} }
     }, 3000);
+    window.__saveTimeCenterIntervalId = id;
     window.addEventListener('pagehide', () => { try { clearInterval(id); } catch (_) {} });
   }
 
@@ -413,14 +544,28 @@ ytm-shorts-lockup-view-model {
     installClickRewrite();
     if (cfg[SHORTS_KEY]) removeShortsNow();
     updateRecommendationsVisibility();
-    updateMastheadCenterRelocation();
+    updateMastheadCenterCss();
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         if (settings[SHORTS_KEY]) removeShortsNow();
         updateRecommendationsVisibility();
-        updateMastheadCenterRelocation();
+        if (!window.__saveTimeCenterApplied) updateMastheadCenterCss();
       });
     }
+    // Ensure final centering after full page load; retry briefly to catch SPA rebuilds
+    window.addEventListener('load', () => {
+      let attempts = 0;
+      const maxAttempts = 40; // ~10 seconds at 250ms
+      const id = setInterval(() => {
+        attempts += 1;
+        if (!window.__saveTimeCenterApplied) { try { updateMastheadCenterCss(); } catch (_) {} }
+        if (window.__saveTimeCenterApplied || attempts >= maxAttempts) {
+          try { clearInterval(id); } catch (_) {}
+        }
+      }, 250);
+      // also run once immediately on load
+      if (!window.__saveTimeCenterApplied) { try { updateMastheadCenterCss(); } catch (_) {} }
+    });
     observeSpaChanges();
   });
 
@@ -440,7 +585,7 @@ ytm-shorts-lockup-view-model {
         if (shouldRun) {
           if (settings[SHORTS_KEY]) removeShortsNow();
           updateRecommendationsVisibility();
-          updateMastheadCenterRelocation();
+          updateMastheadCenterCss();
         }
       });
     }
