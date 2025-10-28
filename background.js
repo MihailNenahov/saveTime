@@ -79,7 +79,7 @@ async function doRefreshDynamicRules() {
 
   // Diagnostics to help identify duplicate IDs and call locations
   try {
-    console.info("[Porsche Redirect] doRefreshDynamicRules", {
+    console.info("[Enki] doRefreshDynamicRules", {
       patterns,
       addRuleIds: addRules.map(r => r.id),
       removeRuleIds,

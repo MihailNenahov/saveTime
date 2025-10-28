@@ -23,7 +23,7 @@
       const msg = e && (e.message || String(e));
       if (msg && /Extension context invalidated/i.test(msg)) return;
       if (isExtensionActive()) {
-        console.error('[Porsche Redirect][content] checkUrl failed:', e);
+        console.error('[Enki][content] checkUrl failed:', e);
       }
     });
   }

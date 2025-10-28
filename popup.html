@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Porsche Redirect</title>
+    <title>Enki</title>
     <style>
       :root {
         --bg: #f8fafc;
@@ -17,7 +17,9 @@
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; min-width: 300px; background: var(--bg); color: var(--text); }
       .container { padding: 19px; }
       .card { background: var(--card); border: 1px solid var(--border); border-radius: 19px; padding: 19px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-      h1 { font-size: 19px; margin: 0 0 13px; }
+      h1 { font-size: 19px; margin: 0 0 13px; display:flex; align-items:center; gap:10px; }
+      .logo { width: 18px; height: 18px; display:inline-block; }
+      .logo img { width: 18px; height: 18px; display:block; }
       .btn { padding: 13px 14px; font-size: 15px; cursor: pointer; border-radius: 13px; border: 1px solid transparent; background: var(--primary); color: var(--primary-contrast); transition: filter .15s; width: 100%; }
       .btn:hover { filter: brightness(0.95); }
       .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
@@ -26,7 +28,10 @@
   <body>
     <div class="container">
       <div class="card">
-        <h1>Porsche Redirect</h1>
+        <h1>
+          <span class="logo" aria-hidden="true"><img alt="Enki" src="Enki-logo.png" /></span>
+          Enki
+        </h1>
         <button id="openOptions" class="btn">Open Options</button>
         <div class="hint">Add or remove URL patterns.</div>
       </div>

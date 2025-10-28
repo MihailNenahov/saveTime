@@ -215,6 +215,34 @@ ytm-shorts-lockup-view-model {
     }
   }
 
+  function resetCenteredSearchImmediately() {
+    try {
+      const center = findMastheadCenterDeep();
+      if (!center) return;
+      if (center.__saveTimePrevStyles) {
+        const prev = center.__saveTimePrevStyles;
+        center.style.setProperty('position', prev.position || '', '');
+        center.style.setProperty('left', prev.left || '', '');
+        center.style.setProperty('top', prev.top || '', '');
+        center.style.setProperty('transform', prev.transform || '', '');
+        center.style.setProperty('z-index', prev.zIndex || '', '');
+        center.style.setProperty('width', prev.width || '', '');
+        center.style.setProperty('min-width', prev.minWidth || '', '');
+        center.style.setProperty('max-width', prev.maxWidth || '', '');
+        center.style.setProperty('flex', prev.flex || '', '');
+        center.style.setProperty('box-sizing', prev.boxSizing || '', '');
+      } else {
+        ['position','left','top','transform','z-index','width','min-width','max-width','flex','box-sizing']
+          .forEach((prop) => { try { center.style.removeProperty(prop); } catch (_) {} });
+      }
+      center.__saveTimePrevStyles = undefined;
+      delete center.dataset.saveTimeCentered;
+      window.__saveTimeCenterApplied = false;
+      const hero = document.getElementById('saveTime-yt-hero');
+      if (hero && hero.parentNode) hero.parentNode.removeChild(hero);
+    } catch (_) {}
+  }
+
   function updateMastheadCenterCss() {
     try {
       const isHome = ((location.pathname || '').replace(/\/+$/, '')) === '';
@@ -264,18 +292,25 @@ ytm-shorts-lockup-view-model {
         try {
           if (window.__saveTimeCenterIntervalId) { clearInterval(window.__saveTimeCenterIntervalId); window.__saveTimeCenterIntervalId = null; }
         } catch (_) {}
-      } else if (center.__saveTimePrevStyles) {
-        const prev = center.__saveTimePrevStyles;
-        center.style.setProperty('position', prev.position || '', '');
-        center.style.setProperty('left', prev.left || '', '');
-        center.style.setProperty('top', prev.top || '', '');
-        center.style.setProperty('transform', prev.transform || '', '');
-        center.style.setProperty('z-index', prev.zIndex || '', '');
-        center.style.setProperty('width', prev.width || '', '');
-        center.style.setProperty('min-width', prev.minWidth || '', '');
-        center.style.setProperty('max-width', prev.maxWidth || '', '');
-        center.style.setProperty('flex', prev.flex || '', '');
-        center.style.setProperty('box-sizing', prev.boxSizing || '', '');
+      } else {
+        // Reset styles even if we do not have a stored snapshot (e.g. new masthead instance)
+        if (center.__saveTimePrevStyles) {
+          const prev = center.__saveTimePrevStyles;
+          center.style.setProperty('position', prev.position || '', '');
+          center.style.setProperty('left', prev.left || '', '');
+          center.style.setProperty('top', prev.top || '', '');
+          center.style.setProperty('transform', prev.transform || '', '');
+          center.style.setProperty('z-index', prev.zIndex || '', '');
+          center.style.setProperty('width', prev.width || '', '');
+          center.style.setProperty('min-width', prev.minWidth || '', '');
+          center.style.setProperty('max-width', prev.maxWidth || '', '');
+          center.style.setProperty('flex', prev.flex || '', '');
+          center.style.setProperty('box-sizing', prev.boxSizing || '', '');
+        } else {
+          // Remove any forced inline properties that we may have set previously
+          ['position','left','top','transform','z-index','width','min-width','max-width','flex','box-sizing']
+            .forEach((prop) => { try { center.style.removeProperty(prop); } catch (_) {} });
+        }
         center.__saveTimePrevStyles = undefined;
         delete center.dataset.saveTimeCentered;
         window.__saveTimeCenterApplied = false;
@@ -525,7 +560,8 @@ ytm-shorts-lockup-view-model {
         scheduled = false;
         if (settings[SHORTS_KEY]) removeShortsNow();
         updateRecommendationsVisibility();
-        if (!window.__saveTimeCenterApplied) updateMastheadCenterCss();
+        // Always re-evaluate centering on SPA changes
+        updateMastheadCenterCss();
       });
     };
     try {
@@ -533,16 +569,47 @@ ytm-shorts-lockup-view-model {
       mo.observe(root, { subtree: true, childList: true });
     } catch (_) {}
     window.addEventListener('yt-navigate-finish', schedule, true);
+    window.addEventListener('yt-navigate-start', () => { resetCenteredSearchImmediately(); schedule(); }, true);
     window.addEventListener('popstate', schedule);
     window.addEventListener('hashchange', schedule);
     const id = setInterval(() => {
       if (settings[SHORTS_KEY]) removeShortsNow();
       updateRecommendationsVisibility();
-      if (!window.__saveTimeCenterApplied) updateMastheadCenterCss();
+      updateMastheadCenterCss();
       if (window.__saveTimeCenterApplied) { try { clearInterval(id); } catch (_) {} }
     }, 3000);
     window.__saveTimeCenterIntervalId = id;
     window.addEventListener('pagehide', () => { try { clearInterval(id); } catch (_) {} });
+
+    // Drop styles immediately on search interactions and channel/menu clicks
+    const onSubmit = () => { resetCenteredSearchImmediately(); };
+    try { document.addEventListener('submit', onSubmit, true); } catch (_) {}
+    try {
+      document.addEventListener('keydown', (e) => {
+        try {
+          if (e && e.key === 'Enter') resetCenteredSearchImmediately();
+        } catch (_) {}
+      }, true);
+    } catch (_) {}
+    try {
+      document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!t || typeof t.closest !== 'function') return;
+        const a = t.closest('a[href]');
+        if (!a) return;
+        const href = String(a.getAttribute('href') || '');
+        if (!href) return;
+        if (
+          href.startsWith('/results') ||
+          href.startsWith('/@') ||
+          href.startsWith('/channel/') ||
+          href.startsWith('/c/') ||
+          href.startsWith('/user/')
+        ) {
+          resetCenteredSearchImmediately();
+        }
+      }, true);
+    } catch (_) {}
   }
 
   getSettings().then((cfg) => {
@@ -567,13 +634,13 @@ ytm-shorts-lockup-view-model {
       const maxAttempts = 40; // ~10 seconds at 250ms
       const id = setInterval(() => {
         attempts += 1;
-        if (!window.__saveTimeCenterApplied) { try { updateMastheadCenterCss(); } catch (_) {} }
+        try { updateMastheadCenterCss(); } catch (_) {}
         if (window.__saveTimeCenterApplied || attempts >= maxAttempts) {
           try { clearInterval(id); } catch (_) {}
         }
       }, 250);
       // also run once immediately on load
-      if (!window.__saveTimeCenterApplied) { try { updateMastheadCenterCss(); } catch (_) {} }
+      try { updateMastheadCenterCss(); } catch (_) {}
     });
     observeSpaChanges();
   });
